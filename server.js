@@ -1,56 +1,64 @@
 'use strict';
 
-const express     = require('express');
-const bodyParser  = require('body-parser');
-const expect      = require('chai').expect;
-const cors        = require('cors');
+// .env file can hold PORT variable if desired
 require('dotenv').config();
 
-const apiRoutes         = require('./routes/api.js');
-const fccTestingRoutes  = require('./routes/fcctesting.js');
-const runner            = require('./test-runner');
+const express = require('express');
+const bodyParser = require('body-parser');
 
-let app = express();
+const cors = require('cors');
 
+const apiRoutes = require('./routes/api.js');
+const fccTestingRoutes = require('./routes/fcctesting.js');
+const runner = require('./test-runner');
+
+const app = express();
+
+// Serve static files from /public folder on any request to /public
 app.use('/public', express.static(process.cwd() + '/public'));
 
-app.use(cors({origin: '*'})); //For FCC testing purposes only
+app.use(cors({ origin: '*' })); // For FCC testing purposes only
 
+// Parse request JSON and url encoded bodies
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-//Index page (static HTML)
-app.route('/')
-  .get(function (req, res) {
-    res.sendFile(process.cwd() + '/views/index.html');
-  });
-
-//For FCC testing purposes
-fccTestingRoutes(app);
-
-//Routing for API 
-apiRoutes(app);  
-    
-//404 Not Found Middleware
-app.use(function(req, res, next) {
-  res.status(404)
-    .type('text')
-    .send('Not Found');
+// Serve index.html page on get request to '/'
+app.route('/').get(function (req, res) {
+  res.sendFile(process.cwd() + '/views/index.html');
 });
 
-const port = process.env.PORT || 3000;
+// For FCC testing purposes
+fccTestingRoutes(app);
 
-//Start our server and tests!
+// Routing for API
+apiRoutes(app);
+
+// 404 page not found:
+app.get('*', (req, res) => {
+  // Redirect to index
+  res.redirect('/');
+});
+
+// Internal Error Handler:
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Internal Server error: See Server Logs');
+});
+
+// Have server listen on PORT or default to 3000
+// http://localhost:3000/
+const port = process.env.PORT || 3000;
 app.listen(port, function () {
-  console.log("Listening on port " + port);
-  if(process.env.NODE_ENV==='test') {
+  console.log('Listening on port ' + port);
+  if (process.env.NODE_ENV === 'test') {
     console.log('Running Tests...');
     setTimeout(function () {
       try {
         runner.run();
-      } catch(e) {
-          console.log('Tests are not valid:');
-          console.error(e);
+      } catch (e) {
+        console.log('Tests are not valid:');
+        console.error(e);
       }
     }, 1500);
   }
