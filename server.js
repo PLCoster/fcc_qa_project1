@@ -14,6 +14,16 @@ const runner = require('./test-runner');
 
 const app = express();
 
+// Log incoming requests in development:
+if (process.env.RUN_MODE === 'development') {
+  app.use((req, res, next) => {
+    console.log(
+      `${req.method} ${req.path}; IP=${req.ip}; https?=${req.secure}`,
+    );
+    next();
+  });
+}
+
 // Serve static files from /public folder on any request to /public
 app.use('/public', express.static(process.cwd() + '/public'));
 
