@@ -1,4 +1,5 @@
-const unitRegex = /kg|lbs|mi|km|gal|l/;
+const numberRegex = /[0-9]*(?:\.[0-9]*)?(?:\/[0-9]*(?:\.[0-9]*)?)?/;
+const validUnitRegex = /kg|lbs|mi|km|gal|l/;
 
 // Class to handle conversions
 function ConvertHandler() {
@@ -8,26 +9,30 @@ function ConvertHandler() {
   // If no number given, returns 1
   this.getNum = function (inputStr) {
     const safeString = inputStr.trim().toLowerCase();
+    // The number portion of the string is everything before a run of alphabetical
+    // characters at the end of the string
+    const numString = safeString.match(/^(?<NUMBER>.*)[a-zA-Z]*$/).groups
+      .NUMBER;
+
     // Try to match number as fraction, decimal or whole number
-    const match = safeString.match(
+    const numMatch = numString.match(
       /^((?<NUMERATOR>[0-9]*(?:\.[0-9]*)?)\/(?<DENOMINATOR>[0-9]*(?:\.[0-9]*)?)|(?<DECIMAL>[0-9]*(?:\.[0-9]*)?))[^0-9\.\/]*$/,
     );
-    console.log(match);
 
-    if (!match) {
+    if (!numMatch) {
       // No valid number detected - throw an error
       throw new Error('invalid number');
     }
 
-    const { NUMERATOR, DENOMINATOR, DECIMAL } = match.groups;
+    const { NUMERATOR, DENOMINATOR, DECIMAL } = numMatch.groups;
 
     // If we have a fractional input, calculate fraction
     if (NUMERATOR && DENOMINATOR) {
       const num = Number(NUMERATOR);
       const denom = Number(DENOMINATOR);
       if (denom === 0) {
-        // Avoid dividing by 0 - number is invalid
-        return false;
+        // Avoid dividing by 0 - number is invalid - throw an error
+        throw new Error('invalid number (divide by 0)');
       }
 
       return num / denom;
@@ -46,54 +51,71 @@ function ConvertHandler() {
   this.getUnit = function (inputStr) {
     const safeString = inputStr.trim().toLowerCase();
 
-    // Try to match the measurement unit
+    // Extract all alphabetic characters from end of the inputStr
+    const unitString = safeString.match(/[a-zA-Z]*$/)[0];
 
-    return result;
+    // Try to match the measurement unit
+    const unitRegex = new RegExp(`^(?<UNIT>${validUnitRegex.source})$`);
+    const unitMatch = unitString.match(unitRegex);
+
+    if (!unitMatch) {
+      // No valid unit detected - throw an error
+      throw new Error('invalid unit');
+    }
+
+    return unitMatch.groups.UNIT === 'l' ? 'L' : unitMatch.groups.UNIT;
   };
 
+  // Returns the abbreviated unit we will convert the given number to,
+  // based on the initial unit given
   this.getReturnUnit = function (initUnit) {
-    let result;
+    const unitToReturnUnit = {
+      L: 'gal',
+      gal: 'L',
+      kg: 'lbs',
+      lbs: 'kg',
+      km: 'mi',
+      mi: 'km',
+    };
 
-    return result;
+    return unitToReturnUnit[initUnit];
   };
 
   this.spellOutUnit = function (unit) {
-    let result;
+    const unitToFullString = {
+      L: 'liters',
+      gal: 'gallons',
+      kg: 'kilograms',
+      lbs: 'pounds',
+      km: 'kilometers',
+      mi: 'miles',
+    };
 
-    return result;
+    return unitToFullString[unit];
   };
 
+  // Converts the initNum to the returnNum value, based on initUnit
+  // Rounds the result to 5 D.P.
   this.convert = function (initNum, initUnit) {
-    const galToL = 3.78541;
-    const lbsToKg = 0.453592;
-    const miToKm = 1.60934;
-    let result;
+    const unitConversion = {
+      gal: 3.78541,
+      L: 1 / 3.78541,
+      lbs: 0.453592,
+      kg: 1 / 0.453592,
+      mi: 1.60934,
+      km: 1 / 1.60934,
+    };
 
-    return result;
+    return Math.round(initNum * unitConversion[initUnit] * 100000) / 100000;
   };
 
   this.getString = function (initNum, initUnit, returnNum, returnUnit) {
-    let result;
+    const conversionString = `${initNum} ${this.spellOutUnit(
+      initUnit,
+    )} converts to ${returnNum} ${this.spellOutUnit(returnUnit)}`;
 
-    return result;
+    return conversionString;
   };
 }
 
 module.exports = ConvertHandler;
-
-const test = new ConvertHandler();
-const testInput = '10kg';
-const result = test.getNum(testInput);
-console.log('RESULT: ', result, typeof result);
-
-const testInput2 = '10.5l';
-const result2 = test.getNum(testInput2);
-console.log('RESULT: ', result2, typeof result2);
-
-const testInput3 = '3/2gal';
-const result3 = test.getNum(testInput3);
-console.log('RESULT: ', result3, typeof result3);
-
-const testInput4 = 'km';
-const result4 = test.getNum(testInput4);
-console.log('RESULT: ', result4, typeof result4);
